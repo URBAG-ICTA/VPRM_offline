@@ -19,6 +19,7 @@ from src.get_modis_point import get_modis_point
 import src.WriteVPRMConstants as WriteVPRMConstants
 from OfflineVPRM import julian
 from scipy import interpolate
+import matplotlib.pyplot as plt
 
 """
 0. Initialization
@@ -26,7 +27,7 @@ from scipy import interpolate
 
 year = 2015
 
-input_origin = 'ERA5' #options are 'ERA5' or 'WRF' 
+input_origin = 'OBS' #options are 'ERA5' or 'WRF' or 'OBS' in case there are observations otherwise 'ERA5'
 wrf_domain = 1 #Only needed in case input_origin = 'WRF'
 
 filterTF = True #Using filtered MODIS data or not
@@ -38,12 +39,12 @@ workpath = './' #Set your work path
 outpath = workpath + 'VPRMoutput/' #Path to output file
 stations_file = '/home/users/rsegura/Stations_data/Stations_info.csv'
 StationDataPath = '/home/users/rsegura/Stations_data/'
-if input_origin == 'ERA5':
+if input_origin == 'ERA5' or 'OBS':
     Metpath = workpath + 'data/ERA5/'
 elif input_origin == 'WRF':
     Metpath = workpath + 'data/WRF_9km/'
 MODISpath = workpath + 'data/MODIS/'
-tag = 'test'
+tag = 'OBS'
 ###Other settings
 vprm_par_name = 'vprmopt.EU2007.local.par.csv'
 parapath = workpath + 'data/VPRMparameters/'
@@ -55,6 +56,25 @@ vprmConstants = WriteVPRMConstants.WriteVPRMConstants(outdir = outpath, nveg = 8
 
 
 igbp_dict = {'ENF':0,'EBF':0, 'DNF':1, 'DBF':1, 'MF':2, 'CSH':3, 'OSH':3, 'WS':4, 'SAV':4, 'GRA':6, 'CRO':5, }
+
+
+def nan_helper(y):
+    """Helper to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1d numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+        >>> # linear interpolation of NaNs
+        >>> nans, x= nan_helper(y)
+        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+
+    return np.isnan(y), lambda z: z.nonzero()[0]
+
 
 """
 1. READ INPUT TOWER DATA
@@ -132,11 +152,44 @@ for sitename in snames:
     3. INITIALIZATION OF METEOROLOGY
     """
     print('getting met data at ' + sitename + ' station')
-    TEMP = np.array([])
-    RAD = np.array([])
-    if input_origin == 'ERA5':
+    
+    OBS_TA = False
+    OBS_SW_IN = False
+    if input_origin == 'OBS':
+        fls = listdir(StationDataPath)
+        fls = [x for x, y in zip(fls, [(sitename in file) for file in fls]) if y == True]
+        fls = [x for x, y in zip(fls, [(str(year) in file) for file in fls]) if y == True]
+        df_obs = pd.read_table(StationDataPath+fls[0], sep=',')
+    
+        if 'SW_IN' in df_obs.columns:
+            df_obs.loc[df_obs['SW_IN'] < -9990,'SW_IN'] = np.nan
+            if df_obs['SW_IN'].isna().sum() < 1000:
+                RAD = df_obs['SW_IN'].values
+                OBS_SW_IN = True
+
+        if 'TA' in df_obs.columns:
+            df_obs.loc[df_obs['TA'] < -9990,'TA'] = np.nan
+            if df_obs['TA'].isna().sum() < 1000:
+                TEMP = df_obs['TA'].values
+                OBS_TA = True 
+
+        print(OBS_TA, OBS_SW_IN)
+        if OBS_TA:
+            nans, x= nan_helper(TEMP)
+            TEMP[nans]= np.interp(x(nans), x(~nans), TEMP[~nans])
+        if OBS_SW_IN:
+            nans, x= nan_helper(RAD)
+            RAD[nans]= np.interp(x(nans), x(~nans), RAD[~nans])
+    
+    
+
+    if input_origin == 'ERA5' or input_origin == 'WRF' or (input_origin == 'OBS' and (not OBS_SW_IN  or not OBS_TA)):
+        if not OBS_TA:
+            TEMP = np.array([])
+        if not OBS_SW_IN:
+            RAD = np.array([])
         for month in range(12):
-            if input_origin == 'ERA5':
+            if input_origin == 'ERA5' or (input_origin == 'OBS' and (not OBS_SW_IN  or not OBS_TA)):
                 met_nc = Dataset(Metpath+'ERA5_'+str(month+1).zfill(2)+'_2015.nc', 'r')
                 if month == 0:
                     lat_era5 = np.array(met_nc.variables['latitude'])
@@ -166,16 +219,16 @@ for sitename in snames:
                     factorSW = ((lat_era5[JSW + 1] - lat)/(lat_era5[JSW+1] - lat_era5[JSW]))*((lon_era5[ISW + 1] - lon)/(lon_era5[ISW+1] - lon_era5[ISW]))
                     factorNW = ((lat - lat_era5[JSW])/(lat_era5[JSW+1] - lat_era5[JSW]))*((lon_era5[ISW + 1] - lon)/(lon_era5[ISW+1] - lon_era5[ISW]))
                     
-                temp_era5 = np.array(met_nc.variables['t2m']) - 273.15
-                
-                temp_era5 = temp_era5[:,::-1,:]
-                temp_out = factorNE*temp_era5[:,JSW + 1, ISW + 1] + factorNW*temp_era5[:,JSW + 1, ISW] + factorSE*temp_era5[:,JSW, ISW + 1] + factorSW*temp_era5[:,JSW, ISW]
-                TEMP = np.concatenate((TEMP, temp_out))
-
-                ssrd_era5 = np.array(met_nc.variables['ssrd'])
-                ssrd_era5 = ssrd_era5[:,::-1,:]/3600
-                ssrd_out = factorNE*ssrd_era5[:,JSW + 1, ISW + 1] + factorNW*ssrd_era5[:,JSW + 1, ISW] + factorSE*ssrd_era5[:,JSW, ISW + 1] + factorSW*ssrd_era5[:,JSW, ISW]
-                RAD = np.concatenate((RAD, ssrd_out))
+                if not OBS_TA:
+                    temp_era5 = np.array(met_nc.variables['t2m']) - 273.15
+                    temp_era5 = temp_era5[:,::-1,:]
+                    temp_out = factorNE*temp_era5[:,JSW + 1, ISW + 1] + factorNW*temp_era5[:,JSW + 1, ISW] + factorSE*temp_era5[:,JSW, ISW + 1] + factorSW*temp_era5[:,JSW, ISW]
+                    TEMP = np.concatenate((TEMP, temp_out))
+                if not OBS_SW_IN:
+                    ssrd_era5 = np.array(met_nc.variables['ssrd'])
+                    ssrd_era5 = ssrd_era5[:,::-1,:]/3600
+                    ssrd_out = factorNE*ssrd_era5[:,JSW + 1, ISW + 1] + factorNW*ssrd_era5[:,JSW + 1, ISW] + factorSE*ssrd_era5[:,JSW, ISW + 1] + factorSW*ssrd_era5[:,JSW, ISW]
+                    RAD = np.concatenate((RAD, ssrd_out))
                 met_nc.close()
             elif input_origin == 'WRF':
                 dds = monthrange(year, month)[1]
@@ -219,10 +272,26 @@ for sitename in snames:
     
 
     fjul = (julian(1,1, year)) + np.arange(0,365, step = 1/24)
-    f = interpolate.interp1d(fjul, TEMP, fill_value = 'extrapolate')
-    Temp = f(fjul_out) #Interpolated to flux time steps
-    f = interpolate.interp1d(fjul, RAD, fill_value = 'extrapolate')
-    Rad = f(fjul_out) #Interpolated to flux time steps
+    if not OBS_TA:
+        f = interpolate.interp1d(fjul, TEMP, fill_value = 'extrapolate')
+        Temp = f(fjul_out) #Interpolated to flux time steps
+    else:
+        Temp = TEMP
+    if not OBS_SW_IN:
+        f = interpolate.interp1d(fjul, RAD, fill_value = 'extrapolate')
+        Rad = f(fjul_out) #Interpolated to flux time steps
+    else:
+        Rad = RAD
+    
+    """
+    fig, ax = plt.subplots(figsize = (10,10))
+    if OBS_SW_IN:
+        ax.plot(RAD_OBS, 'k-', label='OBS')
+    ax.plot(Rad, 'b-', label = 'ERA5')
+    plt.legend()
+    plt.show()
+    plt.close()
+    """
     
     """
     4. ESTIMATION OF MAX/MIN OF EVI/LSWI VARIATIONS
