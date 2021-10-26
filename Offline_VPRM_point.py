@@ -20,6 +20,7 @@ import src.WriteVPRMConstants as WriteVPRMConstants
 from OfflineVPRM import julian
 from scipy import interpolate
 import matplotlib.pyplot as plt
+import datetime
 
 """
 0. Initialization
@@ -27,11 +28,14 @@ import matplotlib.pyplot as plt
 
 year = 2015
 
-input_origin = 'OBS' #options are 'ERA5' or 'WRF' or 'OBS' in case there are observations otherwise 'ERA5'
+first_day = datetime.datetime(year,1,1)
+last_day = datetime.datetime(year+1,1,1)
+num_days = (last_day - first_day).days
+time_steps = num_days *48
+
+input_origin = 'ERA5' #options are 'ERA5' or 'WRF' or 'OBS' in case there are observations otherwise 'ERA5'
 wrf_domain = 1 #Only needed in case input_origin = 'WRF'
 
-filterTF = True #Using filtered MODIS data or not
-modispre = [0,0] #prediction methods for MODIS: EVI, LSWI. (0 for no prediction, 1 for linear, 2 for persistence)
 sim = 'perLSWI' #tag for simulation output
 
 ### Information of input and output
@@ -44,7 +48,7 @@ if input_origin == 'ERA5' or 'OBS':
 elif input_origin == 'WRF':
     Metpath = workpath + 'data/WRF_9km/'
 MODISpath = workpath + 'data/MODIS/'
-tag = 'OBS'
+tag = 'ERA5'
 ###Other settings
 vprm_par_name = 'vprmopt.EU2007.local.par.csv'
 parapath = workpath + 'data/VPRMparameters/'
@@ -139,8 +143,8 @@ for sitename in snames:
     if np.isnan(data[2]).all():
         data[2][:] = 0.5
         print("all LSWI missing for",sitename)
-    EVI = np.empty(shape=(17520))
-    LSWI = np.empty(shape=(17520))
+    EVI = np.empty(shape=(time_steps))
+    LSWI = np.empty(shape=(time_steps))
     
     
     f = interpolate.interp1d(fjul, data[1], fill_value = 'extrapolate')
