@@ -39,7 +39,7 @@ def get_modis_point(year, lat, lon, tile, MODISpath):
     
     lat_syn = np.linspace(24,56, num=3841) 
     lat_syn = lat_syn[:-1] #projinfo$lat_syn obtained from projinfo e.g. is lower left corner coordinates of 1 km pixels
-    lon_syn = np.linspace(-21, 16, num = 4441)
+    lon_syn = np.linspace(-21, 32, num = 6361)
     lon_syn = lon_syn[:-1]
     
 

@@ -5,9 +5,9 @@ Perform a sensitivity Analysis using the Morris Method to obtain the VPRM parame
 """
 
 import numpy as np
-from Offline_VPRM_for_Morris import preprocess_vprm_for_morris
-from Offline_VPRM_for_Morris import vprm_station_for_morris
-from Offline_VPRM_for_Morris import flatten_list_2d
+from src.Offline_VPRM_for_Morris import preprocess_vprm_for_morris
+from src.Offline_VPRM_for_Morris import vprm_station_for_morris
+from src.Offline_VPRM_for_Morris import flatten_list_2d
 from sys import exit
 from os import listdir
 import pandas as pd
@@ -20,7 +20,7 @@ import datetime
 sitename = 'FRPue' #code of the station
 name_fluxnet = 'FR-Pue'
 StationDataPath = '/home/satellites19/rsegura/Stations_data/FLUXNET/' #path to observed data
-iveg = 1 #PFT index of the station
+iveg =  1 #PFT index of the station
 year = 2009 #Year to perform the analysis
 input_origin = 'ERA5' #Input origin for the meteorological data
 pathout = '/home/users/rsegura/Scripts/plots/'
@@ -85,14 +85,37 @@ EVI, EVImax, EVImin, LSWI, LSWImax, LSWImin, Temp, Rad = preprocess_vprm_for_mor
 """
 
 
+
+
+
+#VPRM parameters from WRF
+#PAR0       275.4595, 254.4188, 446.0888, 70.3829, 682.0, 1132.2, 527.9303, 0.00 &
+#lambda     0.22577703, 0.21489270, 0.16293380, 0.29311134, 0.1141, 0.08626603, 0.11930965, 0.00, &
+#alpha      0.28773167, 0.18056630, 0.24447911, 0.05464646, 0.0049, 0.09231632, 0.1245603, 0.00, &
+#beta       -1.09316696, 0.83641734, -0.48669162, -0.12080592, 0.0000, 0.28788863, 0.01743361, 0 /
+#Tmin       0.,0.,0.,2.,2.,5.,2.,0.
+#Tmax       40,40,40,40,40,40,40,40,
+#Topt       20.,20.,20.,20.,20.,22.,18.,0.     
+
+
+
 lambdaGPP = np.linspace(0.1, 0.3, 51)
 radZero = np.linspace(150, 300, 51)
+
+lambdaprior = 0.22577703
+par0prior = 275.4595
+alpha = 0.28773167
+beta = -1.09316696
+Tmin = 0
+Tmax = 40
+Topt = 20
+
 
 X = []
 
 for i in range(len(lambdaGPP)):
     for j in range(len(radZero)):
-        X.append([lambdaGPP[i], radZero[j], 0.28773167, -1.09316696, 0, 40, 20])
+        X.append([lambdaGPP[i], radZero[j], alpha, beta, Tmin, Tmax, Topt])
 
 X = np.array(X)
 
@@ -132,7 +155,7 @@ unit = '($\mathrm{\mu mol CO_2/m^2 s}$)'
 
 
 
-params = [0.22577703, 275.4595, 0.28773167, -1.09316696, 0, 40, 20]
+params = [lambdaprior, par0prior, alpha, beta, Tmin, Tmax, Topt]
 
 GEE, RSP, NEE = vprm_station_for_morris(sitename, year, iveg, params, EVI, LSWI, EVImax, EVImin, LSWImax, LSWImin, Temp, Rad)
 #df_nonopt = df_obs.copy()

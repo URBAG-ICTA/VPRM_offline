@@ -36,7 +36,7 @@ time_steps = num_days *48
 input_origin = 'ERA5' #options are 'ERA5' or 'WRF' or 'OBS' in case there are observations otherwise 'ERA5'
 wrf_domain = 1 #Only needed in case input_origin = 'WRF'
 
-sim = 'perLSWI' #tag for simulation output
+tag = 'ERA5_pscale1' #tag for simulation output
 
 ### Information of input and output
 workpath = './' #Set your work path
@@ -48,7 +48,7 @@ if input_origin == 'ERA5' or 'OBS':
 elif input_origin == 'WRF':
     Metpath = workpath + 'data/WRF_9km/'
 MODISpath = workpath + 'data/MODIS/'
-tag = 'ERA5'
+
 ###Other settings
 vprm_par_name = 'vprmopt.EU2007.local.par.csv'
 parapath = workpath + 'data/VPRMparameters/'
@@ -57,7 +57,7 @@ parapath = workpath + 'data/VPRMparameters/'
 VegClass = 8
 vprmConstants = WriteVPRMConstants.WriteVPRMConstants(outdir = outpath, nveg = 8)
 #### 8 vegetation classes: evergreen,deciduous,mixed forest,shrubland, savanna, cropland, grassland, others######
-
+T_low = [4,0,2,3,0,0,0,-999]
 
 igbp_dict = {'ENF':0,'EBF':0, 'DNF':1, 'DBF':1, 'MF':2, 'CSH':3, 'OSH':3, 'WS':4, 'SAV':4, 'GRA':6, 'CRO':5, }
 
@@ -121,9 +121,9 @@ for sitename in snames:
     lat = stations.loc[sitename, 'Latitude']
     lon = stations.loc[sitename, 'Longitude']
     tile = [stations.loc[sitename, 'tile_h'], stations.loc[sitename, 'tile_v']]
-    veg_type = stations.loc[sitename, 'IGBP']
-    iveg = igbp_dict[veg_type]
-    #iveg = veg_type - 1
+    veg_type = stations.loc[sitename, 'VPRM']
+    #iveg = igbp_dict[veg_type]
+    iveg = veg_type - 1
     """
     2. ESTIMATION OF HOURLY EVI/LSWI VARIATIONS
     """
@@ -152,6 +152,8 @@ for sitename in snames:
     f = interpolate.interp1d(fjul, data[2], fill_value = 'extrapolate')
     LSWI[:] = f(fjul_out)
     
+    
+    #LSWI = LSWI*(2)
     """
     3. INITIALIZATION OF METEOROLOGY
     """
@@ -194,7 +196,7 @@ for sitename in snames:
             RAD = np.array([])
         for month in range(12):
             if input_origin == 'ERA5' or (input_origin == 'OBS' and (not OBS_SW_IN  or not OBS_TA)):
-                met_nc = Dataset(Metpath+'ERA5_'+str(month+1).zfill(2)+'_2015.nc', 'r')
+                met_nc = Dataset(Metpath+'ERA5_'+str(month+1).zfill(2)+'_' + str(year)+'.nc', 'r')
                 if month == 0:
                     lat_era5 = np.array(met_nc.variables['latitude'])
                     lat_era5 = lat_era5[::-1] #Define latitudes from lower values to higher values
@@ -300,9 +302,8 @@ for sitename in snames:
     """
     4. ESTIMATION OF MAX/MIN OF EVI/LSWI VARIATIONS
     """
-    Evimax = np.max(EVI)
-    Evimin = np.min(EVI)
-    EviIn = (Evimax - Evimin)
+    EVImax = np.max(EVI)
+    EVImin = np.min(EVI)
     LSWImax = np.max(LSWI)
     LSWImin = np.min(LSWI)
     
@@ -333,10 +334,12 @@ for sitename in snames:
         
     if iveg in [1, 2, 3, 5, 7]:
         threshmark = 0.55
-        evithresh = Evimin + (threshmark*(Evimax-Evimin))
+        evithresh = EVImin + (threshmark*(EVImax-EVImin))
         phenologyselect = np.where(EVI[:] > evithresh)
         Pscale[phenologyselect] = 1
     Pscale[Pscale < 0] = 0
+    
+    #Pscale[:] = 1
         #by default, grasslands and savannas never have pScale=1
     """
     6. HOURLY GEE (mol/km2/hr) ESTIMATIONS
@@ -354,6 +357,9 @@ for sitename in snames:
     
     alpha = vprmConstants.loc[iveg, 'alphaResp']
     beta = vprmConstants.loc[iveg, 'intResp']
+    
+    tlow = T_low[iveg]
+    Temp[Temp< tlow] = tlow
     RSP = Temp*alpha + beta
     
     RSP = RSP *3600

@@ -19,7 +19,7 @@ from calendar import monthrange
 #from datetime import datetime, timedelta
 import datetime
 import xesmf as xe
-import OfflineVPRM 
+from src.OfflineVPRM import *
 from src.convert_to_hours_since_1900 import convert_to_hours_since_1990
 
 
@@ -32,10 +32,13 @@ mms = np.arange(month1, month2+1)
 
 #Information about the input and output
 
+input_origin = 'ERA5' #options are 'ERA5' or 'WRF' 
+wrf_domain = 1 
+
 workpath = './'
 tag = 'test'
 datp = workpath + 'VPRMoutput/'
-metpath = workpath + 'data/ERA5/' #Path to the met files
+metpath = workpath + 'data/' + input_origin + '/' #Path to the met files
 evilswipath = workpath + 'data/MODIS/'
 parapath = workpath + 'data/VPRMparameters/'
 dnam = 'STILT_EU2_V006'
@@ -45,19 +48,18 @@ returnShortList = False #return only nee
 vprm_par_name = 'vprmopt.EU2007.local.par.csv'
 T_low = [4,0,2,3,0,0,0,-999]
 
-input_origin = 'ERA5' #options are 'ERA5' or 'WRF' 
-wrf_domain = 1 #Only needed in case input_origin = 'WRF'
+
 """
 2. Read MODIS indices and veg cover
 """
 
 fls = listdir(evilswipath)
 fls = [x for x, y in zip(fls, [(str(year) in file) for file in fls]) if y == True] 
-
+fls = [x for x, y in zip(fls, [('d0' + str(wrf_domain) in file) for file in fls]) if y == True] 
 
 
 for fl in fls:
-    vn = fl[11:(len(fl)-8)].lower()
+    vn = fl[11:(len(fl)-12)].lower()
     print('Reading ', vn, ' from NetCDF file.' )
     nc = Dataset(evilswipath+fl, 'r')
     if vn == 'evi':
@@ -192,13 +194,12 @@ for mm in mms:
         """
         start_day = datetime.datetime(year= year, month = mm, day = dd)
         start_hrs = 0
-        landcov = 'SYNMAP.VPRM8'
         delt = 1 #1 hourly temp and dswf (interpolated), so want hourly fluxes
         evi_times = np.arange(0,np.shape(EVI)[1])*8+year*1000
-        flxs = OfflineVPRM.offlineVPRM(Temp = temp_out, Rad = ssrd_out, start_mdy = start_day,  
+        flxs = offlineVPRM(Temp = temp_out, Rad = ssrd_out, start_mdy = start_day,  
                            start_hrs = start_hrs, evi = EVI, lswi = LSWI, vegFracMap = VEG_FRA,  
                            evi_max = EVI_MAX, evi_min = EVI_MIN, lswi_max = LSWI_MAX, lswi_min = LSWI_MIN, datp = datp,
-                           usepar = False, returnNEEOnly = returnShortList, landcov = landcov, 
+                           usepar = False, returnNEEOnly = returnShortList, 
                            returnLongList = returnLongList, delt = delt, evi_times = evi_times, 
                            vprm_par_name = vprm_par_name, tlow = T_low, parapath = parapath)
       
