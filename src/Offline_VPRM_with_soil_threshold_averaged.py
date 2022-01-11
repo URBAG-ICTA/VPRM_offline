@@ -12,7 +12,7 @@ Input: ECMWF met data: temperature, downward shortwave radiation
 from netCDF4 import Dataset
 import numpy as np
 from src.get_modis_point import get_modis_point
-from OfflineVPRM import julian
+from src.OfflineVPRM import julian
 from scipy import interpolate
 import datetime
 
@@ -50,6 +50,25 @@ def nan_helper(y):
     return np.isnan(y), lambda z: z.nonzero()[0]
 
 
+def compute_soil_coefs(level):
+    upper = [0, 7, 28, 100]
+    lower = [7, 28, 100, 289]
+    levs = []
+    coefs = []
+    
+    for i in range(4):
+        if level > upper[i] and level <= lower[i]:
+            levs.append(str(i+1))
+            coefs.append((level-upper[i])/level)
+        
+        elif level > lower[i]:
+            levs.append(str(i+1))
+            coefs.append((lower[i]-upper[i])/level)
+        else:
+            break
+    
+    return levs, coefs
+            
 
 def vprm_station_for_morris(sitename, year, iveg, params, EVI, LSWI, EVImax, EVImin, LSWImax, LSWImin, Temp, Rad, Sm):
     """
@@ -128,7 +147,8 @@ def vprm_station_for_morris(sitename, year, iveg, params, EVI, LSWI, EVImax, EVI
     
     alpha = params[2]
     beta = params[3]
-    Temp[Temp<tlow] = tlow
+    Temp0 = np.copy(Temp)
+    Temp0[Temp0<tlow] = tlow
     
     RSP = Temp*alpha + beta
     
@@ -162,27 +182,8 @@ def preprocess_vprm_for_morris(sitename, year, lat, lon, tile, input_origin = 'E
         - temp, numpy array of temperatures
         - rad, numpy array of surface solar radiation downwards    
     """
-
-
-    if level == 1:
-        levs = ['1']
-        
-        coefs = [1]
-        
     
-    elif level == 2:
-        levs = ['1','2']
-        coefs = [7/25, 18/25]
-
-    elif level == 3:
-        levs = ['1','2','3']
-        coefs = [7/70, 21/70, 42/70]
-        
-    elif level == 4:
-        levs = ['1','2','3','4']
-        coefs = [7/150, 21/150, 72/150, 50/150]
-    
-
+    levs, coefs = compute_soil_coefs(level)
     
     first_day = datetime.datetime(year,1,1)
     last_day = datetime.datetime(year+1,1,1)
@@ -207,13 +208,19 @@ def preprocess_vprm_for_morris(sitename, year, lat, lon, tile, input_origin = 'E
     """
     print('getting MODIS for ', sitename, ' station ', year)
     data = get_modis_point(year=year, lat = lat, lon = lon, tile = tile, MODISpath = MODISpath)
-    
+    evi = data[1]
+    lswi = data[2]
     
     fjul = (julian(1,1, year)-1) + data[0]
     
-    
+    if np.isnan(np.sum(evi)):  
+        nans, x= nan_helper(evi)  
+        evi[nans]= np.interp(x(nans), x(~nans), evi[~nans])
+    if np.isnan(np.sum(lswi)):  
+        nans, x= nan_helper(lswi)  
+        lswi[nans]= np.interp(x(nans), x(~nans), lswi[~nans])
     fjul_out = (julian(1,1, year)) + np.arange(0,num_days, step = 1/48)
-    data = [fjul, data[1], data[2]]
+    data = [fjul, evi, lswi]
     
     if np.isnan(data[1]).all():
         data[1][:] = 0.5
@@ -277,7 +284,7 @@ def preprocess_vprm_for_morris(sitename, year, lat, lon, tile, input_origin = 'E
                 swvl_era5 = swvl_era5 + ext_swvl_era5
                 
                 
-        swvl_out = interpolate.interpn((time_era5,lat_era5, lon_era5), swvl_era5, (time_era5, lat, lon), method='linear')
+        swvl_out = interpolate.interpn((time_era5,lat_era5, lon_era5), swvl_era5, (time_era5, lat, lon), method='nearest')
         if swvl_out[0] < 0 :
             swvl_out = interpolate.interpn((time_era5,lat_era5, lon_era5), swvl_era5, (time_era5, lat, lon), method='nearest')
         SM = np.concatenate((SM, swvl_out))

@@ -117,10 +117,9 @@ def offlineVPRM(Temp, Rad, start_mdy, start_hrs,  evi, lswi, vegFracMap,
         lswi_min = lswi_minm[k]
         
         #get EVI parameters
-        if usepar:
-            lambdaGPP = vprmConstants.loc[k, 'lambdaGPP.par']
-        else:
-            lambdaGPP = vprmConstants.loc[k, 'lambdaGPP.sw']
+
+        lambdaGPP = vprmConstants.loc[k, 'lambdaGPP.sw']
+        
         alphaResp = vprmConstants.loc[k, 'alphaResp']
         intResp = vprmConstants.loc[k, 'intResp']
         
@@ -155,7 +154,6 @@ def offlineVPRM(Temp, Rad, start_mdy, start_hrs,  evi, lswi, vegFracMap,
         pScalar = (1 + lswi)/2
         
         if  (k == 0):
-            phenologyselect = np.arange(0, evi.size)
             pScalar[:] = 1
         
         if (k in [1,2,3,5,7]):  #if decid, mixed, shrub, crop, or other
@@ -174,10 +172,8 @@ def offlineVPRM(Temp, Rad, start_mdy, start_hrs,  evi, lswi, vegFracMap,
         #Update: No longer a factor devan has fit to sw radiation AND par, simply use the appropriate numbers
         #####PAR CONVERSION ISSUES#####
         
-        if usepar:
-            radZero = vprmConstants.loc[k, 'parZero']
-        else:
-            radZero = vprmConstants.loc[k, 'swradZero']
+
+        radZero = vprmConstants.loc[k, 'swradZero']
         
         radScalar = 1/(1 + (Rad/radZero))
         
@@ -188,7 +184,7 @@ def offlineVPRM(Temp, Rad, start_mdy, start_hrs,  evi, lswi, vegFracMap,
         tempScalar[np.where(tempScalar < 0)] = 0
         wScalar[np.isnan(wScalar)] = 0
         pScalar[np.isnan(pScalar)] = 0
-        wScalar[np.where(wScalar < 0)] = 0 #sometimes negative at borders 
+        wScalar[np.where(wScalar < 0)] = 0 
         pScalar[np.where(pScalar < 0)] = 0
         
         
