@@ -31,7 +31,7 @@ vnames = ["Evergreen","Deciduous","Mixed forest","Shrubland","Savanna","Cropland
 
 def WriteVPRMConstants(outdir='./', nveg = 8):
     
-    lambdaGPP_sw = lambdaGPP_factor*np.array([0.22577703,
+    lambdaGPP_sw =                  np.array([0.22577703,
                                               0.21489270,
                                               0.16293380,
                                               0.29311134,
@@ -40,6 +40,7 @@ def WriteVPRMConstants(outdir='./', nveg = 8):
                                               0.11930965,
                                               0.00])
     
+    print(lambdaGPP_sw)
     lambdaGPP_par = lambdaGPP_factor*np.array([0.187,
                                               0.130,
                                               0.192,

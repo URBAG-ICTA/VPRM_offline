@@ -15,7 +15,7 @@ from src.get_modis_point import get_modis_point
 from src.OfflineVPRM import julian
 from scipy import interpolate
 import datetime
-
+import pandas as pd
 
 
 def flatten_list_2d(l):
@@ -114,10 +114,10 @@ def vprm_station_for_morris(sitename, year, iveg, params, EVI, LSWI, EVImax, EVI
     Wscale[Wscale < 0] = 0
     Pscale = (1 + LSWI)/2
 
-    if iveg == 0:
+    if iveg == 0 or iveg==8:
         Pscale[:] = 1
         
-    if iveg in [1, 2, 3, 5, 7, 8]:
+    if iveg in [1, 2, 3, 5, 7]:
         threshmark = 0.55
         evithresh = EVImin + (threshmark*(EVImax-EVImin))
         phenologyselect = np.where(EVI[:] > evithresh)
@@ -207,7 +207,7 @@ def preprocess_vprm_for_morris(sitename, year, lat, lon, tile, input_origin = 'E
     1. ESTIMATION OF HALFHOURLY EVI/LSWI VARIATIONS
     """
     print('getting MODIS for ', sitename, ' station ', year)
-    data = get_modis_point(year=year, lat = lat, lon = lon, tile = tile, MODISpath = MODISpath)
+    data = get_modis_point(year=year, lat = lat, lon = lon, tile = tile, MODISpath = MODISpath, sitename= sitename)
     evi = data[1]
     lswi = data[2]
     
@@ -241,13 +241,14 @@ def preprocess_vprm_for_morris(sitename, year, lat, lon, tile, input_origin = 'E
     """
     2. INITIALIZATION OF METEOROLOGY
     """
-    print('getting met data at ' + sitename + ' station')
+    print('getting met data at ' + sitename + ' station ', year)
     
   
     
     TEMP = np.array([])
     RAD = np.array([])
- 
+    SM = np.array([])
+    """
     for month in range(12):
         met_nc = Dataset(Metpath + 'ERA5_' + str(month+1).zfill(2) + '_'+ str(year) + '.nc', 'r')
         if month == 0:
@@ -290,8 +291,24 @@ def preprocess_vprm_for_morris(sitename, year, lat, lon, tile, input_origin = 'E
         SM = np.concatenate((SM, swvl_out))
             
         met_nc.close()
+    """
+    ERA5path = '/data/co2flux/common/rsegura/DATA/FLUXNET_ERA5/'
+    df = pd.read_csv(ERA5path+sitename+'.csv', sep=',')
     
+    df.Datetime = pd.to_datetime(df['Datetime'], format='%Y-%m-%d %H:%M:%S')
+    df = df.set_index(df['Datetime'])
+
+    df = df.loc[df.index.year == year]
+    TEMP = np.array(df['T2'].values)
+    RAD = np.array(df['SSRD'].values)
+    RAD[RAD< 1e-8] = 0
+    df['SM'] = coefs[0]*df['SWVL1']
+    for i in range(1,len(coefs)):
+        df['SM'] = df['SM'] + coefs[i]*df['SWVL'+levs[i]]
     
+    SM = np.array(df['SM'].values)
+    
+
 
     fjul = (julian(1,1, year)) + np.arange(0,num_days, step = 1/24)
 

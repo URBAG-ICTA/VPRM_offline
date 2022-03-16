@@ -9,7 +9,7 @@ import numpy as np
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 
-def get_modis_point(year, lat, lon, tile, MODISpath):
+def get_modis_point(year, lat, lon, tile, MODISpath, sitename):
     #year: desired year
     #lat, lon: cartesian coordinates for point extraction
     #configfile: config.r file (absolute path) used for VPRM preprocessing
@@ -56,6 +56,11 @@ def get_modis_point(year, lat, lon, tile, MODISpath):
     dlon[dlon < 0] = 100
     sela = np.where(dlat == np.min(dlat))
     selo = np.where(dlon == np.min(dlon))
+    
+    if sitename == 'IT-Ro2':
+        sela = 287
+        selo = 1430
+    print(lat_id[sela], lon_id[selo])
     #extract point data from ncdf files for given tile
     
     evif = Dataset(MODISpath+'evi.smooth.'+tilenm+'.nc')

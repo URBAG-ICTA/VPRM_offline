@@ -16,8 +16,9 @@ from os import listdir
 from calendar import monthrange
 #from datetime import datetime, timedelta
 from src.get_modis_point import get_modis_point
+from src.get_sentinel_point import get_sentinel_point
 import src.WriteVPRMConstants as WriteVPRMConstants
-from OfflineVPRM import julian
+from src.OfflineVPRM import julian
 from scipy import interpolate
 import matplotlib.pyplot as plt
 import datetime
@@ -26,7 +27,9 @@ import datetime
 0. Initialization
 """
 
-year = 2015
+year = 2018
+
+snames = ['FR-Bil', 'FR-Aur'] #Stations to simulate
 
 first_day = datetime.datetime(year,1,1)
 last_day = datetime.datetime(year+1,1,1)
@@ -35,19 +38,26 @@ time_steps = num_days *48
 
 input_origin = 'ERA5' #options are 'ERA5' or 'WRF' or 'OBS' in case there are observations otherwise 'ERA5'
 wrf_domain = 1 #Only needed in case input_origin = 'WRF'
+satellite_origin = 'SENTINEL2'
 
-tag = 'ERA5_pscale1' #tag for simulation output
+tag = 'SENTINEL2_150m' #tag for simulation output
 
 ### Information of input and output
 workpath = './' #Set your work path
 outpath = workpath + 'VPRMoutput/' #Path to output file
-stations_file = '/home/users/rsegura/Stations_data/Stations_info.csv'
-StationDataPath = '/home/users/rsegura/Stations_data/'
+stations_file = '/data/co2flux/common/rsegura/DATA/FLUXNET/Stations_info.csv'
+StationDataPath = '/data/co2flux/common/rsegura/DATA/FLUXNET/'
+
 if input_origin == 'ERA5' or 'OBS':
     Metpath = workpath + 'data/ERA5/'
 elif input_origin == 'WRF':
     Metpath = workpath + 'data/WRF_9km/'
-MODISpath = workpath + 'data/MODIS/'
+
+if satellite_origin == 'MODIS':
+    MODISpath = workpath + 'data/MODIS/'
+elif satellite_origin == 'SENTINEL2':
+    SENTINELpath = workpath + 'data/SENTINEL2/'
+    res = '_150m'
 
 ###Other settings
 vprm_par_name = 'vprmopt.EU2007.local.par.csv'
@@ -83,28 +93,22 @@ def nan_helper(y):
 """
 1. READ INPUT TOWER DATA
 """
-stations = pd.read_csv(stations_file, sep = ',')
+stations_df = pd.read_csv(stations_file, sep = ',')
 
-snames = stations['Station']
+#snames = stations_df['Station']
 vegfra_types = ['Evergreen','Decid', 'Mixfrst','Shrub','Savan','Crop','Grass','Other']
 vprm_class = ["Evergreen Forest","Deciduous Forest","Mixed Forest","Shrubland","Savannas","Cropland","Grassland","Others"]
 
-"""
-vprm_opt = pd.read_csv(parapath+vprm_par_name, sep = ',')
-    
-for i, row in vprm_opt.iterrows():
-    vprmConstants.loc[row['v.class']-1, 'parZero'] = row['PAR0']
-    vprmConstants.loc[row['v.class']-1, 'lambdaGPP.sw'] = row['lambda']
-    vprmConstants.loc[row['v.class']-1, 'alphaResp'] = row['alpha']
-    vprmConstants.loc[row['v.class']-1, 'intResp'] = row['int']
-"""
+stations_df.set_index(stations_df['Station'], inplace=True)
 
-for station in stations['Station'].unique():
+"""
+for station in stations_df['Station'].unique():
     fls = listdir(StationDataPath)
     fls = [x for x, y in zip(fls, [(station in file) for file in fls]) if y == True]
     fls = [x for x, y in zip(fls, [(str(year) in file) for file in fls]) if y == True]
     if len(fls) == 0:
         stations = stations.drop(stations[stations['Station'] == station].index)
+
 
 snames = stations['Station'].unique()
 print(snames)
@@ -112,24 +116,27 @@ stations.set_index(stations['Station'], inplace=True)
 nsites = len(stations)
 
 #snames = np.delete(snames, 6)
+"""
 
 output_df = pd.DataFrame()
 ### Loop over sites
 for sitename in snames:
     print('Start processing at ' + sitename + ' station')
     
-    lat = stations.loc[sitename, 'Latitude']
-    lon = stations.loc[sitename, 'Longitude']
-    tile = [stations.loc[sitename, 'tile_h'], stations.loc[sitename, 'tile_v']]
-    veg_type = stations.loc[sitename, 'VPRM']
-    #iveg = igbp_dict[veg_type]
-    iveg = veg_type - 1
+    lat = stations_df.loc[sitename, 'Latitude']
+    lon = stations_df.loc[sitename, 'Longitude']
+    tile = [stations_df.loc[sitename, 'tile_h'], stations_df.loc[sitename, 'tile_v']]
+    veg_type = stations_df.loc[sitename, 'IGBP']
+    iveg = igbp_dict[veg_type]
+    #iveg = veg_type - 1
     """
     2. ESTIMATION OF HOURLY EVI/LSWI VARIATIONS
     """
-    print('getting MODIS for ', sitename, ' station ', year)
-    data = get_modis_point(year=year, lat = lat, lon = lon, tile = tile, MODISpath = MODISpath)
-    
+    if satellite_origin == 'MODIS':
+        print('getting MODIS for ', sitename, ' station ', year)
+        data = get_modis_point(year=year, lat = lat, lon = lon, tile = tile, MODISpath = MODISpath, sitename=sitename)
+    elif satellite_origin == 'SENTINEL2':
+        data = get_sentinel_point(year=year, SENTINELpath= SENTINELpath, res = res, sitename= sitename)
     
     fjul = (julian(1,1, year)-1) + data[0]
     
@@ -366,12 +373,18 @@ for sitename in snames:
     
     NEE = GEE + RSP
     
+    sep = np.modf(fjul_out)
+    base = datetime.datetime(year=1960, month=1, day=1)
+    date_list = [base + datetime.timedelta(days=x) +datetime.timedelta(hours=y) for x, y in zip(sep[1], sep[0]*24)]
+    
     if sitename == snames[0]:
-        output_df['Times'] = fjul_out
+        output_df['Times'] = date_list
         
     output_df[sitename + '_GEE'] = GEE
     output_df[sitename + '_RSP'] = RSP
     output_df[sitename + '_NEE'] = NEE
+    output_df[sitename + '_EVI'] = EVI
+    output_df[sitename + '_LSWI'] = LSWI
 
 
 output_df.to_csv(outpath+'VPRM.'+tag+'_'+str(year)+'.csv', index = False, header=True)

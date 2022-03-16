@@ -18,35 +18,54 @@ import datetime
 #1. Introduction
 #
 
-iveg = 2
+iveg = 5
+method = 'NT'
 
-#stations = ['FR-Bil', 'IT-Lav', 'IT-Ren', 'IT-SR2'] #ENF
-#train_sites = ['FR-Bil', 'FR-Bil','IT-Lav','IT-Lav','IT-Lav','IT-Ren','IT-SR2','IT-SR2','IT-SR2','IT-SR2']
-#train_years = [2016, 2017, 2011, 2013, 2014, 2011, 2013, 2014, 2015, 2016]
+#stations = ['FR-Bil', 'IT-Lav', 'IT-Ren', 'IT-SR2', 'IT-SRo'] #ENF
+#train_sites = ['FR-Bil', 'FR-Bil','FR-Bil', 'IT-Lav','IT-Lav','IT-Lav', 'IT-Ren','IT-Ren','IT-Ren',  'IT-SR2','IT-SR2','IT-SRo'] #ENF
+#train_years = [2015, 2016, 2017, 2011, 2012, 2014, 2011, 2012, 2013, 2013,  2017, 2011] #ENF
 #stations = ['FR-Pue', 'IT-Cp2'] #EBF
-stations = ['IT-CA1', 'IT-Col', 'IT-Isp', 'IT-Ro2'] #DBF
+#stations = ['IT-CA1', 'IT-CA3', 'IT-Col', 'IT-Isp', 'IT-Ro2'] #DBF
+stations = ['ES-LJu', 'ES-Amo', 'IT-Noe'] #OSH
 #years = [2011, 2012, 2013, 2014, 2015, 2016, 2017]
 
-train_sites = ['IT-CA1', 'IT-CA1', 'IT-Col', 'IT-Col', 'IT-Col', 'IT-Col', 'IT-Isp', 'IT-Ro2']
-train_sites = ['IT-Col', 'IT-Col', 'IT-Col', 'IT-Col', 'IT-Isp', 'IT-Ro2']
-train_years = [2011, 2013, 2011, 2012, 2013, 2014, 2013, 2011]
-train_years = [2011, 2012, 2013, 2014, 2013, 2011]
+stations =[ 'ES-Abr', 'ES-LM1']
 
-StationDataPath = '/home/satellites19/rsegura/Stations_data/FLUXNET/' #path to observed data
+"""
+train_sites = ['FR-Pue', 'FR-Pue', 'FR-Pue', 'IT-Cp2'] #EBF
+train_years = [2011, 2013, 2014, 2013] #EBF
+"""
+train_sites = ['ES-Abr', 'ES-LM1', 'ES-LM1']
+train_years = [2016, 2015, 2017]
+
+#train_sites = ['IT-Noe', 'IT-Noe', 'ES-LJu', 'ES-LJu', 'ES-LJu', 'ES-Amo', 'ES-Amo', 'ES-Amo']
+#train_years = [2012, 2013, 2009, 2011, 2012, 2010, 2011, 2012]
+
+#train_sites = [ 'IT-Col', 'IT-Isp', 'IT-Ro2']
+#train_years = [ 2011, 2014, 2012]
+
+
+
+
+StationDataPath = '/data/co2flux/common/rsegura/DATA/FLUXNET/' #path to observed data
 input_origin = 'ERA5' #Input origin for the meteorological data
-pathout = '/home/users/rsegura/Scripts/plots/'
+pathout = '/data/co2flux/common/rsegura/Scripts/plots/VPRMopt/'
 
 wilting_points = [0.059, 0.151, 0.133, 0.279, 0.335, 0.267]
 saturations = [0.403, 0.439, 0.430, 0.520, 0.614, 0.766]
 field_capacities  = [0.244, 0.347, 0.383, 0.448, 0.541, 0.663]
 soil_levels = [4,4,4,3,3,3,3,1]
 #level = soil_levels[iveg-1]
-#levels = [200, 200, 200, 200] #ENF
+#levels = [200, 200, 200, 200, 200] #ENF
 #levels = [200,200] #EBF
-levels = [200, 200, 200, 200]
-#saturations = [0.3952, 0.4073, 0.3795, 0.43] #ENF
+#levels = [200, 200, 200, 200, 200] #DBF
+#levels = [100, 100, 100] #OSH
+levels = [100, 100] #SAV
+#saturations = [0.3952, 0.4073, 0.3795, 0.43, 0.43] #ENF
 #saturations = [0.43, 0.4366] #EBF
-saturations = [0.439, 0.439, 0.46, 0.439]
+#saturations = [0.439, 0.439, 0.439, 0.46, 0.439] #DBF
+#saturations = [0.439, 0.439, 0.439] #OSH
+saturations = [0.439, 0.439]
 
 #PFT for the Iberian Peninsula - Stations
 #1. Evergreen needleleaf Forest
@@ -57,7 +76,7 @@ saturations = [0.439, 0.439, 0.46, 0.439]
 #6. Cropland
 #7. Grassland
 #8. Others
-
+#9. Evergreen broadleaf forest
 
 #VPRM parameters from WRF
 #PAR0       275.4595, 254.4188, 446.0888, 70.3829, 682.0, 1132.2, 527.9303, 0.00 &
@@ -73,19 +92,34 @@ saturations = [0.439, 0.439, 0.46, 0.439]
 #sm_thres   0.8
 
 
-lambdaGPP = np.linspace(0.15, 0.35, 11)
-radZero =  np.linspace(150, 400, 11)
+lambdaGPP = np.linspace(0.2, 0.35, 11)
+lambda_prior = [0.22577703, 0.21489270, 0.16293380, 0.29311134, 0.1141, 0.08626603, 0.11930965, 0.00, 0.22577703]
+lambda_prior = lambda_prior[iveg-1]
 
-lambda_prior = 0.21489270
-radZero_prior = 254.4188
-alpha = 0.18056630
-beta = 0.83641734
-Tmin = 0
-Tmax = 40
-Topt = 20
-q = np.linspace(-35, -15., 11)
-sm_thres = np.linspace(0.4, 0.9, 11)
+radZero =  np.linspace(400, 800, 11)
+radZero_prior = [275.4595, 254.4188, 446.0888, 70.3829, 682.0, 1132.2, 527.9303, 0.00, 275.4595]
+radZero_prior = radZero_prior[iveg-1]
+
+alpha = [0.28773167, 0.18056630, 0.24447911, 0.05464646, 0.0049, 0.09231632, 0.1245603, 0.00, 0.28773167]
+alpha = alpha[iveg-1]
+
+beta = [-1.09316696, 0.83641734, -0.48669162, -0.12080592, 0.0000, 0.28788863, 0.01743361, 0, 1.09316696]
+beta = beta[iveg-1]
+
+Tmin = [0.,0.,0.,2.,2.,5.,2.,0.,0.]
+Tmin = Tmin[iveg-1]
+
+Tmax = [40,40,40,40,40,40,40,40,40]
+Tmax = Tmax[iveg-1]
+
+Topt = [20.,20.,20.,20.,20.,22.,18.,0.,20.]
+Topt = Topt[iveg-1]
+
+q = np.linspace(-30, -10., 11)
 q_prior = 0
+
+sm_thres = np.linspace(0.3, 0.8, 11)
+
 sm_thres_prior = 0.
 
 unit = '($\mathrm{\mu mol CO_2/m^2 s}$)'
@@ -144,18 +178,17 @@ for j, sitename in enumerate(train_sites):
     df_obs = pd.read_table(StationDataPath+path[0]+'/'+Flux_file, sep=',')
     df_obs['TIMESTAMP_START']= pd.to_datetime(df_obs['TIMESTAMP_START'], format='%Y%m%d%H%M')
     df_obs.set_index(df_obs['TIMESTAMP_START'],inplace=True)
-    df_obs.loc[df_obs['GPP_NT_VUT_REF'] < -9990, 'GPP_NT_VUT_REF'] = np.nan
-    df_obs['GPP_NT_VUT_REF'] = df_obs['GPP_NT_VUT_REF']*-1
-    df_obs.loc[df_obs['GPP_NT_VUT_REF'] > 0, 'GPP_NT_VUT_REF'] = np.nan
-    df_obs = df_obs[['NEE_VUT_REF','GPP_NT_VUT_REF', 'RECO_NT_VUT_REF' ]]
+    df_obs.loc[df_obs['GPP_'+method+'_VUT_REF'] < -9990, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs.loc[df_obs['NEE_VUT_REF_QC'] == 3, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs.loc[df_obs['NEE_VUT_REF_QC'] == 2, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs['GPP_'+method+'_VUT_REF'] = df_obs['GPP_'+method+'_VUT_REF']*-1
+    df_obs.loc[df_obs['GPP_'+method+'_VUT_REF'] > 0, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs = df_obs[['NEE_VUT_REF','GPP_'+method+'_VUT_REF', 'RECO_'+method+'_VUT_REF' ]]
     
     year = train_years[j]
     df_year = df_obs.loc[df_obs.index.year == year]
         
-    if len(df_year) == 0:
-        continue
-    if sitename == 'FR-Bil' and year == 2014:
-        continue
+
         
     print(year)
         
@@ -167,14 +200,15 @@ for j, sitename in enumerate(train_sites):
     plt.title(sitename)
     plt.show()
     plt.close()
-        
+    
+    print('VPRM running for '+sitename+' '+str(year))
     SSE = []
     for i in range(len(X)):
         GEE, RSP, NEE = vprm_station_for_morris(sitename, year, iveg, X[i], EVI, LSWI, EVImax, EVImin, LSWImax, LSWImin, Temp, Rad, Sm)
         df_case = df_year.copy(deep=True)
         df_case['Simulated GEE'] = GEE/3600
         df_case = df_case.dropna(axis=0)
-        SSE.append(np.sum((df_case['Simulated GEE'] - df_case['GPP_NT_VUT_REF']) ** 2))
+        SSE.append(np.sum((df_case['Simulated GEE'] - df_case['GPP_'+method+'_VUT_REF']) ** 2))
     points += len(df_case)
     siteyear_df[sitename+'_'+str(year)] = np.array(SSE)
     siteyear_labels.append(sitename+'_'+str(year))
@@ -233,10 +267,12 @@ for j, sitename in enumerate(train_sites):
     df_obs = pd.read_table(StationDataPath+path[0]+'/'+Flux_file, sep=',')
     df_obs['TIMESTAMP_START']= pd.to_datetime(df_obs['TIMESTAMP_START'], format='%Y%m%d%H%M')
     df_obs.set_index(df_obs['TIMESTAMP_START'],inplace=True)
-    df_obs.loc[df_obs['GPP_NT_VUT_REF'] < -9990, 'GPP_NT_VUT_REF'] = np.nan
-    df_obs['GPP_NT_VUT_REF'] = df_obs['GPP_NT_VUT_REF']*-1
-    df_obs.loc[df_obs['GPP_NT_VUT_REF'] > 0, 'GPP_NT_VUT_REF'] = np.nan
-    df_obs = df_obs[['NEE_VUT_REF','GPP_NT_VUT_REF', 'RECO_NT_VUT_REF' ]]
+    df_obs.loc[df_obs['GPP_'+method+'_VUT_REF'] < -9990, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs.loc[df_obs['NEE_VUT_REF_QC'] == 3, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs.loc[df_obs['NEE_VUT_REF_QC'] == 2, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs['GPP_'+method+'_VUT_REF'] = df_obs['GPP_'+method+'_VUT_REF']*-1
+    df_obs.loc[df_obs['GPP_'+method+'_VUT_REF'] > 0, 'GPP_'+method+'_VUT_REF'] = np.nan
+    df_obs = df_obs[['NEE_VUT_REF','GPP_'+method+'_VUT_REF', 'RECO_'+method+'_VUT_REF' ]]
     
     year = train_years[j]
     df_year = df_obs.loc[df_obs.index.year == year]
@@ -260,14 +296,14 @@ for j, sitename in enumerate(train_sites):
     df_case = df_year.copy(deep=True)
     df_case['Simulated GEE'] = GEE_prior/3600
     df_case = df_case.dropna(axis=0)
-    SSE += (np.sum((df_case['Simulated GEE'] - df_case['GPP_NT_VUT_REF']) ** 2))
+    SSE += (np.sum((df_case['Simulated GEE'] - df_case['GPP_'+method+'_VUT_REF']) ** 2))
     
     
     GEE_opt = GEE_opt/3600
     GEE_prior = GEE_prior/3600
 
     df_opt = df_year.copy(deep=True)
-    df_opt['GEE_obs'] = df_opt['GPP_NT_VUT_REF']
+    df_opt['GEE_obs'] = df_opt['GPP_'+method+'_VUT_REF']
     df_opt['GEE_opt'] = GEE_opt
     df_opt['GEE_prior'] = GEE_prior
         
