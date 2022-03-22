@@ -38,9 +38,9 @@ time_steps = num_days *48
 
 input_origin = 'ERA5' #options are 'ERA5' or 'WRF' or 'OBS' in case there are observations otherwise 'ERA5'
 wrf_domain = 1 #Only needed in case input_origin = 'WRF'
-satellite_origin = 'SENTINEL2'
+satellite_origin = 'SENTINEL2' #Options are MODIS and SENTINEL2
 
-tag = 'SENTINEL2_150m' #tag for simulation output
+tag = 'SENTINEL2_500m' #tag for simulation output
 
 ### Information of input and output
 workpath = './' #Set your work path
@@ -57,7 +57,7 @@ if satellite_origin == 'MODIS':
     MODISpath = workpath + 'data/MODIS/'
 elif satellite_origin == 'SENTINEL2':
     SENTINELpath = workpath + 'data/SENTINEL2/'
-    res = '_150m'
+    res = '_500m'
 
 ###Other settings
 vprm_par_name = 'vprmopt.EU2007.local.par.csv'
@@ -254,24 +254,31 @@ for sitename in snames:
                         res = np.where(dist == np.min(dist))
                         sela = res[0][0]
                         selo = res[1][0]
-                        if lat_wrf[sela] >= lat:
-                            if lon_wrf[selo] >= lon:
+                        if lat_wrf[sela][selo] >= lat:
+                            if lon_wrf[sela][selo] >= lon:
                                 ISW = selo -1
                                 JSW = sela -1   
                             else:
                                 ISW = selo
                                 JSW = sela -1
                         else:
-                            if lon_wrf[selo] >= lon:
+                            if lon_wrf[sela][selo] >= lon:
                                 ISW = selo -1
                                 JSW = sela 
                             else:
                                 ISW = selo
                                 JSW = sela 
-                        factorNE = ((lat - lat_wrf[JSW])/(lat_wrf[JSW+1] - lat_wrf[JSW]))*((lon - lon_wrf[ISW])/(lon_wrf[ISW+1] - lon_wrf[ISW]))
-                        factorSE = ((lat_wrf[JSW + 1] - lat)/(lat_wrf[JSW+1] - lat_wrf[JSW]))*((lon - lon_wrf[ISW])/(lon_wrf[ISW+1] - lon_wrf[ISW]))
-                        factorSW = ((lat_wrf[JSW + 1] - lat)/(lat_wrf[JSW+1] - lat_wrf[JSW]))*((lon_wrf[ISW + 1] - lon)/(lon_wrf[ISW+1] - lon_wrf[ISW]))
-                        factorNW = ((lat - lat_wrf[JSW])/(lat_wrf[JSW+1] - lat_wrf[JSW]))*((lon_wrf[ISW + 1] - lon)/(lon_wrf[ISW+1] - lon_wrf[ISW]))
+                                
+                        Weight_NW = abs((lon_wrf[JSW+1][ISW+1] - lon)/(lon_wrf[JSW+1][ISW+1]-lon_wrf[JSW+1][ISW]))
+                        Weight_SW = abs((lon_wrf[JSW][ISW+1] - lon)/(lon_wrf[JSW][ISW+1] - lon_wrf[JSW][ISW]))
+                        Nlat = lat_wrf[JSW+1][ISW+1]*(1-Weight_NW) + lat_wrf[JSW+1][ISW]*Weight_NW
+                        Slat = lat_wrf[JSW][ISW+1]*(1-Weight_SW) + lat_wrf[JSW][ISW]*Weight_SW
+                        Weight_N = abs((Slat-lat)/(Nlat -Slat))
+                        factorNW = Weight_NW*Weight_N
+                        factorNE = (1-Weight_NW)*Weight_N
+                        factorSW = Weight_SW*(1-Weight_N)
+                        factorSE = (1-Weight_SW)*(1-Weight_N)
+
                            
                     temp_wrf = np.array(met_nc.variables['T2']) - 273.15
                     temp_out = factorNE*temp_wrf[:,JSW + 1, ISW + 1] + factorNW*temp_wrf[:,JSW + 1, ISW] + factorSE*temp_wrf[:,JSW, ISW + 1] + factorSW*temp_wrf[:,JSW, ISW]
