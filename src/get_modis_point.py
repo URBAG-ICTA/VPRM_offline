@@ -49,11 +49,11 @@ def get_modis_point(year, lat, lon, tile, MODISpath, sitename):
 
     #now lat_id and lon_id are lat-lon starting with lower left corner of tile
     #now get tile pointers
-    dlat = lat - lat_id
-    dlon = lon - lon_id
+    dlat = abs(lat - lat_id)
+    dlon = abs(lon - lon_id)
     #select pixel for which lower left corner has minimum positive distance from desired location
-    dlat[dlat< 0] = 100
-    dlon[dlon < 0] = 100
+    #dlat[dlat< 0] = 100
+    #dlon[dlon < 0] = 100
     sela = np.where(dlat == np.min(dlat))
     selo = np.where(dlon == np.min(dlon))
     
