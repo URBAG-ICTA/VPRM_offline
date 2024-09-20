@@ -1,6 +1,6 @@
 #VPRM_offline
 Vegetation Photosynthesis and Respiration Model offline written in Python based on the VPRM model 
-described at Mahadevan et al. (2008) and the forecasting version described in Chen et al. (2020).
+described at Mahadevan et al. (2008) and the forecasting version described in Chen et al. (2020). This code has been used in the study "Heat and drought events alter biogenic capacity to balance CO2 budget in south-western Europe" (DOI: 10.22541/essoar.171136782.20335714/v1).
 
 The code is composed of two programs:
 Offline_VPRM_Domain.py - for estimating the biogenic CO2 fluxes for a 2D domain.
